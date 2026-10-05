@@ -1,11 +1,12 @@
+# PUNTO 3 SPI: Obtención de presión barométrica y temperatura mediante sensor BMP280
 
-# PUNTO 3 ADC: Detección de dirección de una fuente de luz con dos LDRs en ESP32
+## Objetivo
+Entender y manejar la interfaz de comunicación serial síncrona **SPI (Serial Peripheral Interface)** para la adquisición de datos climáticos de alta precisión mediante un sensor barométrico.
+
+---
 
 ## Descripción general
-
-Este proyecto utiliza **dos fotorresistencias (LDRs)** conectadas al **ESP32 DevKit** para detectar la **dirección de un foco de luz**.  
-La idea es comparar los niveles de iluminación recibidos por cada LDR y determinar **hacia qué lado hay más luz** (izquierda o derecha).  
-Adicionalmente, se activa un **LED indicador** led del LDR izquierda o led del LDR derecho para indicar donde es la concentracion mayor de luz.
+En este ejercicio se implementa la comunicación entre el ESP32 y el sensor **BMP280** utilizando el bus **VSPI**. El sistema permite obtener lecturas de temperatura, presión atmosférica y una estimación de la altitud, visualizando la información en tiempo real a través del **Monitor Serial**.
 
 ---
 
@@ -13,193 +14,136 @@ Adicionalmente, se activa un **LED indicador** led del LDR izquierda o led del L
 
 | Componente | Cantidad | Descripción |
 |-------------|-----------|-------------|
-| ESP32 DevKit | 1 | Microcontrolador principal |
-| LDR (fotorresistencia) | 2 | Sensores de luz analógicos |
-| Resistencia fija 10 kΩ | 2 | Para formar divisores de tensión con los LDR |
-| LED | 2 | Indicador visual de luz fuerte |
-| Resistencia 220 Ω | 1 | Limitadora de corriente para el LED |
-| Protoboard y cables | - | Conexiones |
+| **ESP32 DevKit** | 1 | Microcontrolador con bus VSPI disponible |
+| **Sensor BMP280** | 1 | Sensor de presión y temperatura con interfaz SPI |
+| **Cable USB** | 1 | Comunicación y alimentación desde el PC |
+| **PC con Arduino IDE** | 1 | Entorno de desarrollo y visualización de datos |
 
 ---
 
-##  Conexión del circuito
+## Esquema de conexión
 
-Cada LDR forma un **divisor de tensión** junto a una resistencia de **10 kΩ**.  
-El voltaje medido en el punto medio del divisor se conecta a un **pin analógico** del ESP32.
+Para este ejercicio se utiliza el bus **VSPI** estándar del ESP32. Es fundamental asegurar que el sensor se alimente con **3.3V**, ya que voltajes superiores pueden dañarlo.
 
-```
-(Vcc = 3.3V)
-         LDR1           LDR2
-          │               │
-         ┌┴┐             ┌┴┐
-         │ │             │ │
-         │ │             │ │
-         └┬┘             └┬┘
-          │               │
-          ├── A0 (GPIO 32)│── A1 (GPIO 33)
-          [10kΩ]           [10kΩ]
-          │               │
-         GND             GND
-
-LED → GPIO 25 (a través de 220Ω)
-```
-
----
-
-## 🧮 Principio de funcionamiento
-
-El valor de tensión en el punto de medición depende de la **resistencia variable del LDR**:
-
-$V_{out} = V_{cc} \times \frac{R_{fija}}{R_{LDR} + R_{fija}}$
-
-Cuando hay **más luz**, la resistencia del LDR **disminuye**, haciendo que el voltaje de salida **aumente**.
+| Pin Sensor (BMP280) | Pin ESP32 (GPIO) | Función SPI |
+|---------------------|------------------|-------------|
+| **VCC** | 3.3V | Alimentación (Voltaje de referencia) |
+| **GND** | GND | Tierra |
+| **SCL** | **18** | SCK (Serial Clock) |
+| **SDO** | **19** | MISO (Master Input Slave Output) |
+| **SDA** | **23** | MOSI (Master Output Slave Input) |
+| **CSB** | **5** | CS (Chip Select) |
 
 ---
 
 ## Lógica del programa
 
-1. Se leen los valores analógicos de los dos LDR (`ldrLeft` y `ldrRight`).
-2. Se escalan para obtener una estimación de resistencia del LDR:
-   \[
-   R_{LDR} = R_{fija} \times \left( \frac{V_{cc} - V_{LDR}}{V_{LDR}} \right)
-   \]
-3. Se calcula la **diferencia entre ambos LDRs**:
-   - Si `LDR1 > LDR2` → la luz viene del **lado izquierdo**.  
-   - Si `LDR2 > LDR1` → la luz viene del **lado derecho**.  
-4. Se enciende un **LED de alarma** si cualquiera de los dos LDR supera el umbral definido (`THRESHOLD`).
+1. **Configuración Inicial:** Se inicializa la comunicación serial a **115200 baudios** y se verifica la conexión física del sensor mediante el bus SPI.
+
+2. **Ajuste de Muestreo:** El sensor se configura en **Modo Normal** con técnicas de *oversampling* y filtrado interno para reducir el ruido en las lecturas de presión.
+
+3. **Adquisición:** En cada ciclo del programa (cada 2 segundos), se extraen los valores de temperatura en °C y presión en hPa.
+
+4. **Cálculo de Altitud:** Se utiliza la presión barométrica actual frente a la presión estándar a nivel del mar (1013.25 hPa) para estimar la altitud en metros.
+
+5. **Visualización:** Se formatea y envía la información al monitor serial para su análisis.
 
 ---
 
-## Código del proyecto
+## Ajustes y recomendaciones
+
+- **Librerías Obligatorias:** Se debe instalar la librería `Adafruit_BMP280` y su dependencia `Adafruit Unified Sensor` desde el gestor de librerías del IDE.
+
+- **Protocolo Síncrono:** A diferencia de I2C, la interfaz SPI utiliza cuatro hilos de datos y requiere un pin de selección de chip (**CS**) para habilitar la comunicación.
+
+- **Pines VSPI:** Se recomienda usar los pines definidos en la tabla (18, 19, 23 y 5) por ser la configuración de hardware nativa del bus VSPI del ESP32.
+
+---
+
+## Código del programa
 
 ```cpp
-// Detección de dirección de luz con 2 LDRs (ESP32)
-// Lectura, suavizado por media móvil y estimación angular aproximada.
+/*
+ * PRÁCTICA DE INSTRUMENTACIÓN: INTERFAZ SÍNCRONA SPI
+ * Ejercicio 3: Sensor BMP280 de Presión y Temperatura
+ */
 
-#define LDR_LEFT_PIN 35
-#define LDR_RIGHT_PIN 34
+#include <SPI.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP280.h>
 
-#define LED_LEFT_PIN 25
-#define LED_RIGHT_PIN 26
+// --- DEFINICIÓN DE PINES SPI (Bus VSPI estándar en ESP32) ---
+#define BMP_SCK  18
+#define BMP_MISO 19
+#define BMP_MOSI 23
+#define BMP_CS   5
 
-// Parámetros físicos / calibración
-#define R_FIJA 10000.0        // valor de la resistencia fija en ohmios (uso informativo)
-#define MAX_ANGLE 60.0        // grados: mitad del ángulo que esperas que cubra el arreglo (ajusta en calibración)
-
-// Suavizado
-#define N_SMOOTH 8            // número de muestras para promedio móvil (potencia de suavidad)
-
-// Umbral mínimo de luz para considerar "señal válida"
-#define MIN_ADC_SUM 50        // si suma de ADCs < esto, se considera muy poca luz
-
-// ---- variables ----
-float bufferLeft[N_SMOOTH];
-float bufferRight[N_SMOOTH];
-int idxSmooth = 0;
-bool filled = false;
+Adafruit_BMP280 bmp(BMP_CS, BMP_MOSI, BMP_MISO, BMP_SCK);
 
 void setup() {
   Serial.begin(115200);
-  pinMode(LDR_LEFT_PIN, INPUT);
-  pinMode(LDR_RIGHT_PIN, INPUT);
 
-  pinMode(LED_LEFT_PIN, OUTPUT);
-  pinMode(LED_RIGHT_PIN, OUTPUT);
+  delay(1000);
+  Serial.println(F("\\n--- INICIANDO SENSOR BMP280 (SPI) ---"));
 
-  // init buffers
-  for (int i = 0; i < N_SMOOTH; ++i) { bufferLeft[i] = 0.0; bufferRight[i] = 0.0; }
+  if (!bmp.begin()) {
+    Serial.println(F("Error: No se encontró un sensor BMP280 válido."));
+    Serial.println(F("Verifique las conexiones de los pines SCK, MISO, MOSI y CS."));
+    while (1) delay(10);
+  }
 
-  Serial.println("=== Direccion de luz con 2 LDRs ===");
-  Serial.println("Ajusta MAX_ANGLE en codigo tras calibracion.");
-  delay(500);
-}
+  bmp.setSampling(
+      Adafruit_BMP280::MODE_NORMAL,
+      Adafruit_BMP280::SAMPLING_X2,
+      Adafruit_BMP280::SAMPLING_X16,
+      Adafruit_BMP280::FILTER_X16,
+      Adafruit_BMP280::STANDBY_MS_500
+  );
 
-float readSmooth(int pin, float *buf) {
-  int adc = analogRead(pin);           // 0..4095
-  buf[idxSmooth] = (float)adc;
-  // promedio
-  float sum = 0;
-  int count = filled ? N_SMOOTH : (idxSmooth + 1);
-  for (int i = 0; i < count; ++i) sum += buf[i];
-  return sum / (float)count;
+  Serial.println(F("Sensor configurado correctamente. Iniciando lecturas...\\n"));
 }
 
 void loop() {
-  float avgLeft = readSmooth(LDR_LEFT_PIN, bufferLeft);
-  float avgRight = readSmooth(LDR_RIGHT_PIN, bufferRight);
+  float temperatura = bmp.readTemperature();
+  float presion = bmp.readPressure() / 100.0F;
+  float altitud = bmp.readAltitude(1013.25);
 
-  idxSmooth++;
-  if (idxSmooth >= N_SMOOTH) { idxSmooth = 0; filled = true; }
+  Serial.print(F("Temperatura: "));
+  Serial.print(temperatura);
+  Serial.println(F(" *C"));
 
-  float sum = avgLeft + avgRight;
+  Serial.print(F("Presion Barometrica: "));
+  Serial.print(presion);
+  Serial.println(F(" hPa"));
 
-  // Si hay muy poca luz, no estimamos
-  if (sum < MIN_ADC_SUM) {
-    Serial.println("Señal muy baja -> poca luz. No se estima direccion.");
-    digitalWrite(LED_LEFT_PIN, LOW);
-    digitalWrite(LED_RIGHT_PIN, LOW);
-    delay(200);
-    return;
-  }
+  Serial.print(F("Altitud Aprox: "));
+  Serial.print(altitud);
+  Serial.println(F(" m"));
 
-  // proporción del lado derecho (0..1)
-  float r = avgRight / sum;
+  Serial.println(F("------------------------------------"));
 
-  // convertir a ángulo aproximado: (-MAX_ANGLE .. +MAX_ANGLE)
-  float angle = (r - 0.5f) * 2.0f * MAX_ANGLE;
-
-  // indicar lado con LED (umbral simple)
-  float SIDE_THRESHOLD = 0.55f;  // >0.55 -> derecha, <0.45 -> izquierda, entre -> centro
-  if (r > SIDE_THRESHOLD) {
-    digitalWrite(LED_RIGHT_PIN, HIGH);
-    digitalWrite(LED_LEFT_PIN, LOW);
-  } else if (r < (1.0f - SIDE_THRESHOLD)) {
-    digitalWrite(LED_LEFT_PIN, HIGH);
-    digitalWrite(LED_RIGHT_PIN, LOW);
-  } else {
-    digitalWrite(LED_LEFT_PIN, LOW);
-    digitalWrite(LED_RIGHT_PIN, LOW);
-  }
-
-  // salida por serial
-  Serial.print("ADC_L: "); Serial.print(avgLeft, 1);
-  Serial.print("\tADC_R: "); Serial.print(avgRight, 1);
-  Serial.print("\t r: "); Serial.print(r, 3);
-  Serial.print("\t Angle_est (deg): "); Serial.print(angle, 1);
-  Serial.println();
-
-  delay(300);
+  delay(2000);
 }
-
 ```
 
 ---
 
-##  Ajustes recomendados
+## Resultados esperados
 
-- Puedes modificar la **resistencia fija (R_FIXED)** para ajustar la sensibilidad.  
-  - Mayor resistencia → más sensibilidad a bajas luces.  
-  - Menor resistencia → más sensibilidad a luces intensas.
-- El umbral `THRESHOLD` debe calibrarse según la iluminación del ambiente.
-- Si las lecturas son muy bajas, puedes aumentar el valor del divisor a **10 kΩ**.
+```text
+--- INICIANDO SENSOR BMP280 (SPI) ---
+Sensor configurado correctamente. Iniciando lecturas...
 
----
-
-##  Resultados esperados
-
-Por el monitor serial se imprimen los valores de resistencia de cada LDR y la dirección estimada de la fuente de luz.  
-El LED se encenderá cuando la intensidad lumínica general sea alta.
-
-Ejemplo de salida:
+Temperatura: 24.50 *C
+Presion Barometrica: 1012.35 hPa
+Altitud Aprox: 120.45 m
+------------------------------------
 ```
-LDR Izq: 1250 Ω | LDR Der: 3400 Ω | → Luz desde la IZQUIERDA
-```
-
 
 ---
 
 ## 👨‍💻 Autor
-**Juan Esteban**  
-Proyecto educativo de medición de luz y control con ESP32.  
-Diseñado para el curso de instrumentacion electronica uso en laboratorios de sistemas embebidos.
 
+**Jerónimo Novoa Giraldo**
+
+Proyecto de práctica con comunicación SPI e instrumentación climática usando ESP32 + BMP280, desarrollado para el curso de Instrumentación Electrónica.
