@@ -36,7 +36,7 @@ El voltaje medido en el punto medio del divisor se conecta a un **pin analógico
          │ │             │ │
          └┬┘             └┬┘
           │               │
-          ├── A0 (GPIO 32)│── A1 (GPIO 33)
+          ├── A0 (GPIO 35)│── A1 (GPIO 34)
           [10kΩ]           [10kΩ]
           │               │
          GND             GND
@@ -199,7 +199,7 @@ LDR Izq: 1250 Ω | LDR Der: 3400 Ω | → Luz desde la IZQUIERDA
 ---
 
 ## 👨‍💻 Autor
-**Juan Esteban**  
+**Jerónimo Novoa**  
 Proyecto educativo de medición de luz y control con ESP32.  
 Diseñado para el curso de instrumentacion electronica uso en laboratorios de sistemas embebidos.
 
