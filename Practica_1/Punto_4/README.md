@@ -38,7 +38,7 @@ Cada LDR se conecta en serie con una resistencia fija de 10 kΩ formando un divi
          │ │             │ │
          └┬┘             └┬┘
           │               │
-          ├── GPIO32      ├── GPIO33
+          ├── GPIO35      ├── GPIO34
           [10kΩ]          [10kΩ]
           │               │
          GND             GND
@@ -154,6 +154,6 @@ LDR Izq (RΩ): 1949 | LDR Der (RΩ): 159 | Diff: -0.18 | Servo: 0
 
 
 ## 👨‍💻 Autor
-**Juan Esteban**  
+**Jerónimo Novoa**  
 Proyecto de sistemas embebidos para el curso de instrumentacion electronica: seguimiento de luz con ESP32, dos LDRs y un servomotor.
 
