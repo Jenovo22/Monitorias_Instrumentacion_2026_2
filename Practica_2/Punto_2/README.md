@@ -1,141 +1,98 @@
-# PUNTO 2 I2C: Visualización de reloj digital y lectura de potenciómetro en pantalla OLED SSD1306 
+# Punto 2 — I2C: reloj digital y lectura de potenciómetro en OLED SSD1306
 
-## Objetivo
-[cite_start]Comprender el funcionamiento de la interfaz de comunicación serial síncrona **I2C** y el manejo de convertidores análogo-digitales (ADC) para la visualización de datos en tiempo real en periféricos direccionables[cite: 7, 22, 64].
+## Descripción
 
----
+Este proyecto utiliza un **ESP32** para mostrar en una pantalla **OLED SSD1306** dos datos en tiempo real:
 
-## Descripción general 
-[cite_start]En este proyecto se implementa un **reloj digital** por software que muestra la hora junto con el valor bruto leído desde un **potenciómetro analógico**[cite: 65]. [cite_start]Ambos datos se visualizan simultáneamente en una **pantalla OLED I2C SSD1306** y se respaldan mediante el **Monitor Serial**[cite: 7, 142].
+- Un reloj digital implementado por software.
+- El valor leído desde un potenciómetro mediante el convertidor analógico-digital (ADC) del ESP32.
 
----
+La pantalla se comunica con el microcontrolador mediante el protocolo **I2C**. Los mismos datos también se envían al **Monitor Serial** para facilitar la comprobación del funcionamiento.
 
-## Componentes requeridos 
-
-| Componente | Cantidad | Descripción | 
-|-------------|-----------|-------------| 
-| **ESP32 DevKit** | 1 | Microcontrolador principal |
-| **Pantalla OLED SSD1306** | 1 | Comunicación por I2C (dirección estándar 0x3C) |
-| **Potenciómetro** | 1 | Control analógico de entrada (ADC1) |
-| **Cable USB** | 1 | Programación y monitor serial |
-| **PC con Arduino IDE** | 1 | Entorno de programación y monitoreo |
+> El reloj se genera a partir de `millis()`. Por lo tanto, no conserva la hora real al reiniciar o desconectar el ESP32 y no sustituye un módulo RTC.
 
 ---
 
-## Esquema de conexión 
+## Objetivos
 
-### Pantalla OLED SSD1306 (Bus I2C)
-| OLED Pin | ESP32 Pin sugerido | Función |
-|-----------|-------------------|---------|
-| VCC | 3.3V | Alimentación |
+- Utilizar el protocolo de comunicación **I2C** con el ESP32.
+- Leer una señal analógica mediante el **ADC**.
+- Mostrar información en una pantalla OLED SSD1306.
+- Implementar una referencia de tiempo mediante `millis()` sin detener la ejecución principal del programa.
+- Verificar los datos mediante el Monitor Serial.
+
+---
+
+## Componentes
+
+| Componente | Cantidad | Descripción |
+|---|---:|---|
+| ESP32 DevKit | 1 | Microcontrolador principal |
+| Pantalla OLED SSD1306 | 1 | Pantalla I2C, 128 × 64 píxeles |
+| Potenciómetro | 1 | Entrada analógica |
+| Cable USB | 1 | Alimentación y programación |
+| Computador con Arduino IDE | 1 | Compilación, carga y monitoreo |
+| Cables de conexión | Varios | Conexión entre los componentes |
+
+---
+
+## Conexiones
+
+### Pantalla OLED SSD1306
+
+| Pin OLED | ESP32 | Función |
+|---|---|---|
+| VCC | 3.3 V | Alimentación |
 | GND | GND | Tierra |
-| SDA | **GPIO 21** | [cite_start]Datos seriales I2C [cite: 70, 78] |
-| SCL | **GPIO 22** | [cite_start]Reloj serial I2C [cite: 70, 79] | 
+| SDA | GPIO 21 | Datos I2C |
+| SCL | GPIO 22 | Reloj I2C |
 
-### Potenciómetro (Entrada Análoga)
-| Pin Potenciómetro | ESP32 | Función |
-|-------------------|--------|---------|
-| Terminal izquierda | 3.3V | Referencia positiva |
-| Terminal derecha | GND | Referencia negativa |
-| Terminal central | **GPIO 34** | [cite_start]Señal análoga (ADC1) [cite: 81, 105] | 
+### Potenciómetro
 
-![Esquematico completo](Punto2.png)
+| Terminal del potenciómetro | ESP32 | Función |
+|---|---|---|
+| Terminal lateral 1 | 3.3 V | Referencia positiva |
+| Terminal lateral 2 | GND | Referencia negativa |
+| Terminal central | GPIO 34 | Entrada analógica ADC1 |
 
----
+El orden de los dos terminales laterales puede invertirse. Esto únicamente cambia el sentido en el que aumenta o disminuye la lectura al girar el potenciómetro.
 
-## Lógica del programa 
+### Esquema
 
-1. [cite_start]**Inicialización:** Configura la comunicación I2C para la OLED y el puerto serial a **115200 baudios**[cite: 47, 130].
-2. [cite_start]**Adquisición de datos:** Lee continuamente el valor del potenciómetro en el pin 34 con una resolución de 12 bits (0 a 4095)[cite: 132, 247, 248].
-3. [cite_start]**Gestión del tiempo:** Utiliza la función `millis()` para crear un reloj no bloqueante que incrementa segundos, minutos y horas cada 1000ms[cite: 66, 144].
-4. [cite_start]**Visualización:** Actualiza el buffer de la pantalla OLED con la hora formateada y el valor del ADC, enviando los datos mediante la función `display.display()`[cite: 139, 150].
-5. [cite_start]**Depuración:** Envía los mismos datos al Monitor Serial cada segundo para verificar el funcionamiento y facilitar el monitoreo[cite: 2, 137].
+![Esquemático completo](Punto2.png)
 
 ---
 
-## Ajustes y recomendaciones 
+## Preparación del entorno
 
-- [cite_start]**Librerías:** Es obligatorio instalar las librerías `Adafruit SSD1306` y `Adafruit GFX` desde el gestor de librerías del IDE para el manejo correcto de la pantalla[cite: 147, 148].
-- **Dirección I2C:** La dirección estándar de este módulo suele ser `0x3C`. [cite_start]Si la pantalla no inicializa, verifique si su módulo utiliza `0x3D`[cite: 146, 397].
-- [cite_start]**Pines Seguros:** Se utiliza el pin **34** por ser un pin del ADC1, los cuales son seguros de usar y son estrictamente de solo entrada[cite: 80, 81, 109].
+### 1. Instalar Arduino IDE
 
----
+Instale **Arduino IDE** y configure el soporte para placas ESP32 si todavía no se encuentra disponible en el entorno.
 
-## Resultados esperados 
+### 2. Seleccionar la placa
 
-**Salida en el Monitor Serial:** ``` 
-Hora actual: 10:45:01 | Potenciometro: 1324 
-Hora actual: 10:45:02 | Potenciometro: 1308
+Conecte el ESP32 al computador mediante USB y seleccione en Arduino IDE:
 
-¡Hecho, Jerónimo! Aquí tienes la estructura definitiva del README para el Punto 2, ajustada a tu autoría y sin el bloque de código, tal como lo solicitaste.
+**Herramientas → Placa → ESP32 Arduino → ESP32 Dev Module**
 
-Está lista para que la copies y pegues directamente en tu archivo .md.
+Seleccione también el puerto correspondiente al dispositivo desde:
 
-Markdown
-# PUNTO 2 I2C: Visualización de reloj digital y lectura de potenciómetro en pantalla OLED SSD1306 
+**Herramientas → Puerto**
 
-## Objetivo
-[cite_start]Comprender el funcionamiento de la interfaz de comunicación serial síncrona **I2C** y el manejo de convertidores análogo-digitales (ADC) para la visualización de datos en tiempo real en periféricos direccionables[cite: 7, 22, 64].
+### 3. Instalar las librerías
 
----
+Desde el **Gestor de bibliotecas** de Arduino IDE instale:
 
-## Descripción general 
-[cite_start]En este proyecto se implementa un **reloj digital** por software que muestra la hora junto con el valor bruto leído desde un **potenciómetro analógico**[cite: 65]. [cite_start]Ambos datos se visualizan simultáneamente en una **pantalla OLED I2C SSD1306** y se respaldan mediante el **Monitor Serial**[cite: 7, 142].
+- `Adafruit GFX Library`
+- `Adafruit SSD1306`
+
+La librería `Wire`, utilizada para I2C, forma parte del entorno Arduino y no requiere una instalación adicional.
 
 ---
 
-## Componentes requeridos 
+## Código
 
-| Componente | Cantidad | Descripción | 
-|-------------|-----------|-------------| 
-| **ESP32 DevKit** | 1 | Microcontrolador principal |
-| **Pantalla OLED SSD1306** | 1 | Comunicación por I2C (dirección estándar 0x3C) |
-| **Potenciómetro** | 1 | Control analógico de entrada (ADC1) |
-| **Cable USB** | 1 | Programación y monitor serial |
-| **PC con Arduino IDE** | 1 | Entorno de programación y monitoreo |
-
----
-
-## Esquema de conexión 
-
-### Pantalla OLED SSD1306 (Bus I2C)
-| OLED Pin | ESP32 Pin sugerido | Función |
-|-----------|-------------------|---------|
-| VCC | 3.3V | Alimentación |
-| GND | GND | Tierra |
-| SDA | **GPIO 21** | [cite_start]Datos seriales I2C [cite: 70, 78] |
-| SCL | **GPIO 22** | [cite_start]Reloj serial I2C [cite: 70, 79] | 
-
-### Potenciómetro (Entrada Análoga)
-| Pin Potenciómetro | ESP32 | Función |
-|-------------------|--------|---------|
-| Terminal izquierda | 3.3V | Referencia positiva |
-| Terminal derecha | GND | Referencia negativa |
-| Terminal central | **GPIO 34** | [cite_start]Señal análoga (ADC1) [cite: 81, 105] | 
-
-![Esquematico completo](Punto2.png)
-
----
-
-## Lógica del programa 
-
-1. [cite_start]**Inicialización:** Configura la comunicación I2C para la OLED y el puerto serial a **115200 baudios**[cite: 47, 130].
-2. [cite_start]**Adquisición de datos:** Lee continuamente el valor del potenciómetro en el pin 34 con una resolución de 12 bits (0 a 4095)[cite: 132, 247, 248].
-3. [cite_start]**Gestión del tiempo:** Utiliza la función `millis()` para crear un reloj no bloqueante que incrementa segundos, minutos y horas cada 1000ms[cite: 66, 144].
-4. [cite_start]**Visualización:** Actualiza el buffer de la pantalla OLED con la hora formateada y el valor del ADC, enviando los datos mediante la función `display.display()`[cite: 139, 150].
-5. [cite_start]**Depuración:** Envía los mismos datos al Monitor Serial cada segundo para verificar el funcionamiento y facilitar el monitoreo[cite: 2, 137].
-
----
-
-## Ajustes y recomendaciones 
-
-- [cite_start]**Librerías:** Es obligatorio instalar las librerías `Adafruit SSD1306` y `Adafruit GFX` desde el gestor de librerías del IDE para el manejo correcto de la pantalla[cite: 147, 148].
-- **Dirección I2C:** La dirección estándar de este módulo suele ser `0x3C`. [cite_start]Si la pantalla no inicializa, verifique si su módulo utiliza `0x3D`[cite: 146, 397].
-- [cite_start]**Pines Seguros:** Se utiliza el pin **34** por ser un pin del ADC1, los cuales son seguros de usar y son estrictamente de solo entrada[cite: 80, 81, 109].
-
----
-```cpp 
-
+```cpp
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -143,24 +100,30 @@ Markdown
 #define ANCHO 128
 #define ALTO 64
 #define OLED_RESET -1
+
 Adafruit_SSD1306 display(ANCHO, ALTO, &Wire, OLED_RESET);
 
-int potPin = 34;
+const int potPin = 34;
+
 int hora = 3;
 int minuto = 26;
 int segundo = 0;
+
 unsigned long previo = 0;
-unsigned long intervalo = 1000;
+const unsigned long intervalo = 1000;
 
 void setup() {
   Serial.begin(115200);
+
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
     Serial.println("No se detecta pantalla SSD1306");
     for (;;);
   }
+
   display.clearDisplay();
   display.display();
-  Serial.println("Iniciando reloj digital con lectura de potenciómetro...");
+
+  Serial.println("Iniciando reloj digital con lectura de potenciometro...");
 }
 
 void loop() {
@@ -170,13 +133,18 @@ void loop() {
   if (actual - previo >= intervalo) {
     previo = actual;
     segundo++;
+
     if (segundo >= 60) {
       segundo = 0;
       minuto++;
+
       if (minuto >= 60) {
         minuto = 0;
         hora++;
-        if (hora >= 24) hora = 0;
+
+        if (hora >= 24) {
+          hora = 0;
+        }
       }
     }
 
@@ -194,9 +162,11 @@ void loop() {
   }
 
   display.clearDisplay();
-  display.setTextSize(2);
   display.setTextColor(SSD1306_WHITE);
+
+  display.setTextSize(2);
   display.setCursor(10, 10);
+
   if (hora < 10) display.print("0");
   display.print(hora);
   display.print(":");
@@ -210,20 +180,139 @@ void loop() {
   display.setCursor(10, 50);
   display.print("POT: ");
   display.print(valor);
+
   display.display();
 
   delay(100);
 }
 ```
 
-## Resultados esperados 
+---
 
-**Salida en el Monitor Serial:** ``` 
-Hora actual: 10:45:01 | Potenciometro: 1324 
-Hora actual: 10:45:02 | Potenciometro: 1308 
-Visualización en la pantalla OLED: - Línea superior (Tamaño 2): 10:45:03
+## Carga y ejecución
 
-Línea inferior (Tamaño 1): POT: 1308
+1. Realice las conexiones indicadas en las tablas anteriores.
+2. Conecte el ESP32 al computador mediante USB.
+3. Abra el código en Arduino IDE.
+4. Compruebe que estén seleccionados la placa y el puerto correctos.
+5. Compile el programa con **Verificar**.
+6. Cargue el programa al ESP32 con **Subir**.
+7. Abra el **Monitor Serial**.
+8. Configure la velocidad del Monitor Serial en **115200 baudios**.
+9. Gire el potenciómetro y compruebe que el valor mostrado cambie tanto en la OLED como en el Monitor Serial.
 
-👨‍💻 Autor
-Jerónimo Novoa Giraldo Proyecto de práctica con I2C y entradas analógicas usando ESP32 + OLED SSD1306, desarrollado para el curso de Instrumentación Electrónica.
+---
+
+## Funcionamiento del programa
+
+### Inicialización
+
+Al iniciar, el ESP32 configura la comunicación serial a **115200 baudios** e intenta inicializar la pantalla OLED en la dirección I2C `0x3C`.
+
+Si la pantalla no responde, el programa muestra el mensaje:
+
+```text
+No se detecta pantalla SSD1306
+```
+
+y detiene la ejecución.
+
+### Lectura del potenciómetro
+
+El terminal central del potenciómetro está conectado al **GPIO 34**, perteneciente al ADC1 del ESP32. El programa obtiene su valor mediante:
+
+```cpp
+int valor = analogRead(potPin);
+```
+
+Con la configuración utilizada, la lectura esperada se encuentra aproximadamente entre **0 y 4095**.
+
+### Reloj por software
+
+La función `millis()` permite determinar cuándo ha transcurrido aproximadamente un segundo sin utilizar un `delay(1000)` para controlar el reloj.
+
+Cada segundo se incrementa la variable `segundo`. Al alcanzar 60 segundos se incrementan los minutos; al alcanzar 60 minutos se incrementan las horas; y al alcanzar 24 horas el conteo vuelve a cero.
+
+La hora inicial se define en estas variables:
+
+```cpp
+int hora = 3;
+int minuto = 26;
+int segundo = 0;
+```
+
+Puede modificarlas antes de cargar el programa si se desea iniciar el contador desde otra hora.
+
+### Visualización en la OLED
+
+La pantalla muestra:
+
+- En la parte superior: la hora en formato `HH:MM:SS`.
+- En la parte inferior: el valor instantáneo del potenciómetro.
+
+Ejemplo:
+
+```text
+03:26:15
+POT: 1308
+```
+
+### Monitor Serial
+
+Cada segundo se envía una línea con la hora y el valor del ADC:
+
+```text
+Hora actual: 03:26:01 | Potenciometro: 1324
+Hora actual: 03:26:02 | Potenciometro: 1308
+```
+
+---
+
+## Verificación del funcionamiento
+
+El montaje funciona correctamente si se cumplen las siguientes condiciones:
+
+1. La pantalla OLED enciende y muestra la hora.
+2. El reloj incrementa los segundos de manera continua.
+3. El valor `POT` cambia al girar el potenciómetro.
+4. El Monitor Serial muestra los mismos datos a **115200 baudios**.
+5. La lectura del potenciómetro se mantiene aproximadamente dentro del intervalo de 0 a 4095.
+
+---
+
+## Solución de problemas
+
+### La pantalla OLED no muestra información
+
+- Verifique las conexiones de `VCC`, `GND`, `SDA` y `SCL`.
+- Compruebe que `SDA` esté conectado al GPIO 21 y `SCL` al GPIO 22.
+- Verifique que las librerías de Adafruit estén instaladas.
+- La dirección utilizada por el programa es `0x3C`. Algunos módulos SSD1306 pueden utilizar `0x3D`; en ese caso debe modificarse la dirección en `display.begin()`.
+
+### El valor del potenciómetro no cambia
+
+- Compruebe que el terminal central esté conectado al GPIO 34.
+- Verifique que los terminales laterales estén conectados a 3.3 V y GND.
+- Compruebe que exista una tierra común entre todos los componentes.
+
+### No aparece información en el Monitor Serial
+
+- Configure el Monitor Serial a **115200 baudios**.
+- Verifique que esté seleccionado el puerto correcto.
+- Reinicie el ESP32 después de abrir el Monitor Serial si es necesario.
+
+---
+
+## Consideraciones
+
+- El **GPIO 34** del ESP32 se utiliza únicamente como entrada, por lo que es apropiado para la lectura del potenciómetro.
+- No aplique al GPIO 34 una tensión superior a **3.3 V**.
+- El reloj implementado no mantiene la hora después de un reinicio.
+- Si se requiere conservar la hora real, se debe utilizar un RTC externo o sincronización mediante red.
+
+---
+
+## Autor
+
+**Jerónimo Novoa Giraldo**  
+Curso de Instrumentación Electrónica.
